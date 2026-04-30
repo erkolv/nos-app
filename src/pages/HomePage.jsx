@@ -38,6 +38,116 @@ function MiniChart({ period }) {
   )
 }
 
+
+// ─── UTIL CARDS ───────────────────────────────────────────────────────────────
+function UtilCards({ utilReadings, navigate }) {
+  const UTIL_CFG = {
+    Energia:  { ic:'⚡', unit:'kWh', bg:'#1A1A18', textC:'#fff', barC:'#CEFF00', mutedC:'rgba(255,255,255,0.3)' },
+    Água:     { ic:'💧', unit:'m³',  bg:'#fff',    textC:'#0E0E0C', barC:'#5AC8FA', mutedC:'rgba(14,14,12,0.42)', border:true },
+    Internet: { ic:'🌐', unit:'Mb',  bg:'#CEFF00', textC:'#0E0E0C', barC:'#0E0E0C', mutedC:'rgba(14,14,12,0.45)' },
+    Gás:      { ic:'🔥', unit:'%',   bg:'#2E2E2C', textC:'#fff',    barC:'#FF9F0A', mutedC:'rgba(255,255,255,0.3)' },
+  }
+
+  // pega o registro mais recente de cada tipo
+  function last(type) {
+    return utilReadings
+      .filter(r => r.type === type)
+      .sort((a,b) => b.month?.localeCompare(a.month||'') || 0)[0] || null
+  }
+
+  // calcula variação entre último e penúltimo mês
+  function trend(type) {
+    const sorted = utilReadings
+      .filter(r => r.type === type)
+      .sort((a,b) => b.month?.localeCompare(a.month||'') || 0)
+    if (sorted.length < 2) return null
+    const diff = sorted[0].value - sorted[1].value
+    const pct  = sorted[1].value > 0 ? Math.round(Math.abs(diff) / sorted[1].value * 100) : 0
+    return { up: diff > 0, pct }
+  }
+
+  const types = ['Energia', 'Água', 'Internet', 'Gás']
+  const hasAny = types.some(t => last(t))
+
+  if (!hasAny) {
+    return (
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:'rgba(14,14,12,0.42)',marginBottom:9}}>Casa & consumo</div>
+        <div
+          onClick={() => navigate('/financeiro')}
+          style={{borderRadius:20,padding:'16px 18px',background:'#fff',border:'1px solid rgba(14,14,12,0.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,marginBottom:3}}>Nenhum consumo registrado</div>
+            <div style={{fontSize:11,color:'rgba(14,14,12,0.42)'}}>Registre energia, água, internet e gás</div>
+          </div>
+          <svg width="16" height="16" fill="none" stroke="rgba(14,14,12,0.3)" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{marginBottom:10}}>
+      <div style={{fontSize:10,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:'rgba(14,14,12,0.42)',marginBottom:9}}>Casa & consumo</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        {types.map(type => {
+          const cfg = UTIL_CFG[type]
+          const rec = last(type)
+          const tr  = trend(type)
+          const isDark = cfg.bg !== '#fff' && cfg.bg !== '#CEFF00'
+          const isLime = cfg.bg === '#CEFF00'
+
+          // barra de progresso — normalizada por valor máximo do histórico
+          const maxVal = Math.max(...utilReadings.filter(r=>r.type===type).map(r=>r.value||0), 1)
+          const barPct = rec ? Math.round((rec.value||0) / maxVal * 100) : 0
+
+          return (
+            <div key={type} onClick={() => navigate('/financeiro')} style={{
+              borderRadius:20, padding:15, background:cfg.bg, cursor:'pointer',
+              border: cfg.border ? '1px solid rgba(14,14,12,0.08)' : 'none',
+              position:'relative', overflow:'hidden'
+            }}>
+              {/* badge de tendência */}
+              {tr && (
+                <span style={{position:'absolute',top:10,right:10,fontSize:9,fontWeight:800,padding:'1px 6px',borderRadius:100,
+                  background: isDark ? (tr.up?'rgba(224,58,46,.2)':'rgba(206,255,0,.18)') : (tr.up?'#FEEEE8':'#E8F5ED'),
+                  color: isDark ? (tr.up?'#FF6B6B':'#CEFF00') : (tr.up?'#C04020':'#1a7a3e')}}>
+                  {tr.up?'↑':'↓'} {tr.pct}%
+                </span>
+              )}
+              {!rec && (
+                <span style={{position:'absolute',top:10,right:10,fontSize:9,fontWeight:700,padding:'1px 6px',borderRadius:100,
+                  background:'rgba(14,14,12,0.1)',color:cfg.mutedC}}>Sem dados</span>
+              )}
+
+              <div style={{fontSize:17,marginBottom:6}}>{cfg.ic}</div>
+              <div style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:cfg.mutedC,marginBottom:2}}>{type}</div>
+
+              {rec ? (
+                <>
+                  <div style={{fontSize:19,fontWeight:900,color:cfg.textC,letterSpacing:'-.8px'}}>
+                    {rec.value}<span style={{fontSize:10,opacity:.5,marginLeft:2}}>{cfg.unit}</span>
+                  </div>
+                  <div style={{fontSize:10,color:cfg.mutedC,marginTop:2}}>
+                    R$ {Number(rec.amount||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}/mês · {rec.month}
+                  </div>
+                </>
+              ) : (
+                <div style={{fontSize:14,fontWeight:700,color:cfg.mutedC,marginTop:4}}>—</div>
+              )}
+
+              <div style={{height:3,borderRadius:100,marginTop:8,overflow:'hidden',
+                background: isDark?'rgba(255,255,255,.1)':isLime?'rgba(14,14,12,.1)':'rgba(14,14,12,.1)'}}>
+                <div style={{height:'100%',width:`${rec?barPct:0}%`,background:cfg.barC,borderRadius:100,transition:'width .5s'}}/>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const { profile, partner, coupleId } = useAuth()
@@ -78,6 +188,9 @@ export default function HomePage() {
   const { data: pets } = useTable('pets')
   const { data: racaoRows } = useTable('rac_data')
   const { data: petVaccines } = useTable('pet_vaccines')
+  const { data: utilReadings } = useTable('utility_readings')
+  const { data: expenses }     = useTable('expenses')
+  const { data: salaries }     = useTable('salaries')
 
   // Recados
   const [recadoOpen, setRecadoOpen] = useState(false)
@@ -104,7 +217,27 @@ export default function HomePage() {
     .filter(a => a.scheduled_at === todayStr)
     .sort((a,b) => (a.time||'').localeCompare(b.time||''))
 
-  const TOTALS = { Semanal:'6.540', Mensal:'4.300', Anual:'23.800' }
+  // Financeiro real
+  const thisMonth  = new Date().toISOString().slice(0,7)
+  const lastMonth  = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7) })()
+  const lastYear   = new Date().getFullYear() - 1
+
+  const monthExp   = expenses.filter(e=>(e.date||'').slice(0,7)===thisMonth).reduce((s,e)=>s+(e.amount||0),0)
+  const weekStart  = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()); return d.toISOString().slice(0,10) })()
+  const weekExp    = expenses.filter(e=>(e.date||'')>=weekStart).reduce((s,e)=>s+(e.amount||0),0)
+  const yearExp    = expenses.filter(e=>(e.date||'').startsWith(String(new Date().getFullYear()))).reduce((s,e)=>s+(e.amount||0),0)
+
+  const totalSal   = salaries.reduce((s,r)=>s+(r.amount||0),0)
+  const saldoLivre = totalSal - monthExp
+
+  const prevMonthExp = expenses.filter(e=>(e.date||'').slice(0,7)===lastMonth).reduce((s,e)=>s+(e.amount||0),0)
+  const expTrend   = prevMonthExp>0 ? Math.round((monthExp-prevMonthExp)/prevMonthExp*100) : null
+
+  const TOTALS_REAL = {
+    Semanal: weekExp.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}),
+    Mensal:  monthExp.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}),
+    Anual:   yearExp.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}),
+  }
 
   async function sendRecado() {
     if (!recadoText.trim()) return
@@ -217,7 +350,7 @@ export default function HomePage() {
           <div>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:'.7px',textTransform:'uppercase',color:'rgba(14,14,12,.45)',marginBottom:4}}>Gastos do período</div>
             <div style={{fontSize:36,fontWeight:900,letterSpacing:'-2.5px',lineHeight:1,color:C.black}}>
-              <sub style={{fontSize:13,fontWeight:700,verticalAlign:'super'}}>R$</sub>{TOTALS[period]}
+              <sub style={{fontSize:13,fontWeight:700,verticalAlign:'super'}}>R$</sub>{expenses.length>0 ? TOTALS_REAL[period] : (period==="Semanal"?"—":period==="Mensal"?"—":"—")}
             </div>
           </div>
           <button onClick={()=>navigate('/financeiro')} style={{width:34,height:34,background:C.black,borderRadius:'50%',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
@@ -225,8 +358,8 @@ export default function HomePage() {
           </button>
         </div>
         <div style={{display:'flex',gap:6,marginBottom:14,flexWrap:'wrap'}}>
-          <span style={{padding:'4px 10px',borderRadius:100,fontSize:10,fontWeight:700,background:'rgba(14,14,12,.09)',color:C.black}}>💼 Receita R$ 13.500</span>
-          <span style={{padding:'4px 10px',borderRadius:100,fontSize:10,fontWeight:700,background:C.black,color:C.lime}}>💰 Saldo R$ 9.200</span>
+          {totalSal>0&&<span style={{padding:'4px 10px',borderRadius:100,fontSize:10,fontWeight:700,background:'rgba(14,14,12,.09)',color:C.black}}>💼 Receita {brl(totalSal)}</span>}
+          {totalSal>0&&<span style={{padding:'4px 10px',borderRadius:100,fontSize:10,fontWeight:700,background:saldoLivre>=0?C.black:'#FEE8E2',color:saldoLivre>=0?C.lime:C.err}}>💰 Saldo {brl(Math.abs(saldoLivre))}</span>}
         </div>
         <MiniChart period={period}/>
       </Card>
@@ -234,14 +367,14 @@ export default function HomePage() {
       {/* ── STATS ── */}
       <Grid2>
         <div style={{borderRadius:20,padding:15,background:C.black}}>
-          <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:'rgba(255,255,255,0.3)',marginBottom:5}}>Receita</div>
-          <div style={{fontSize:18,fontWeight:900,color:'#fff',letterSpacing:'-1px'}}>R$ 13.500</div>
-          <div style={{display:'inline-flex',padding:'2px 8px',borderRadius:100,fontSize:10,fontWeight:800,marginTop:7,background:'rgba(206,255,0,0.15)',color:C.lime}}>▲ +4,2%</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:'rgba(255,255,255,0.3)',marginBottom:5}}>Receita familiar</div>
+          <div style={{fontSize:18,fontWeight:900,color:'#fff',letterSpacing:'-1px'}}>{totalSal>0?brl(totalSal):'—'}</div>
+          {expTrend!==null&&<div style={{display:'inline-flex',padding:'2px 8px',borderRadius:100,fontSize:10,fontWeight:800,marginTop:7,background:expTrend>0?'rgba(224,58,46,.2)':'rgba(206,255,0,.15)',color:expTrend>0?'#FF6B6B':C.lime}}>{expTrend>0?'▲':'▼'} gastos {Math.abs(expTrend)}% vs mês ant.</div>}
         </div>
         <div style={{borderRadius:20,padding:15,background:C.white,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:C.muted,marginBottom:5}}>Saldo livre</div>
-          <div style={{fontSize:18,fontWeight:900,color:'#2ECC71',letterSpacing:'-1px'}}>R$ 9.200</div>
-          <div style={{display:'inline-flex',padding:'2px 8px',borderRadius:100,fontSize:10,fontWeight:800,marginTop:7,background:'#E8F5ED',color:'#1a7a3e'}}>▲ Saudável</div>
+          <div style={{fontSize:18,fontWeight:900,color:saldoLivre>=0?'#2ECC71':C.err,letterSpacing:'-1px'}}>{totalSal>0?brl(Math.abs(saldoLivre)):'—'}</div>
+          <div style={{display:'inline-flex',padding:'2px 8px',borderRadius:100,fontSize:10,fontWeight:800,marginTop:7,background:saldoLivre>=0?'#E8F5ED':'#FEE8E2',color:saldoLivre>=0?'#1a7a3e':C.err}}>{saldoLivre>=0?'▲ Saudável':'▼ Acima do orçamento'}</div>
         </div>
       </Grid2>
 
@@ -332,26 +465,8 @@ export default function HomePage() {
         </Card>
       </div>
 
-      {/* ── UTILIDADES ── */}
-      <div style={{fontSize:10,fontWeight:700,letterSpacing:'1px',textTransform:'uppercase',color:C.muted,marginBottom:9}}>Casa & consumo</div>
-      <Grid2>
-        <div style={{borderRadius:20,padding:15,background:C.dark,position:'relative',overflow:'hidden'}}>
-          <span style={{position:'absolute',top:10,right:10,fontSize:9,fontWeight:800,padding:'1px 6px',borderRadius:100,background:'rgba(206,255,0,.18)',color:C.lime}}>↓ 8%</span>
-          <div style={{fontSize:17,marginBottom:6}}>⚡</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:'rgba(255,255,255,0.3)',marginBottom:2}}>Energia</div>
-          <div style={{fontSize:19,fontWeight:900,color:'#fff',letterSpacing:'-.8px'}}>187<span style={{fontSize:10,opacity:.5,marginLeft:2}}>kWh</span></div>
-          <div style={{fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>R$ 162,40/mês</div>
-          <div style={{height:3,borderRadius:100,marginTop:8,overflow:'hidden',background:'rgba(255,255,255,.1)'}}><div style={{height:'100%',width:'62%',background:C.lime,borderRadius:100}}/></div>
-        </div>
-        <div style={{borderRadius:20,padding:15,background:C.white,border:`1px solid ${C.border}`,position:'relative',overflow:'hidden'}}>
-          <span style={{position:'absolute',top:10,right:10,fontSize:9,fontWeight:800,padding:'1px 6px',borderRadius:100,background:'#FEEEE8',color:'#C04020'}}>↑ 3%</span>
-          <div style={{fontSize:17,marginBottom:6}}>💧</div>
-          <div style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:C.muted,marginBottom:2}}>Água</div>
-          <div style={{fontSize:19,fontWeight:900,color:C.black,letterSpacing:'-.8px'}}>14<span style={{fontSize:10,opacity:.5,marginLeft:2}}>m³</span></div>
-          <div style={{fontSize:10,color:C.muted,marginTop:2}}>R$ 48,20/mês</div>
-          <div style={{height:3,borderRadius:100,marginTop:8,overflow:'hidden',background:'rgba(14,14,12,.1)'}}><div style={{height:'100%',width:'42%',background:'#5AC8FA',borderRadius:100}}/></div>
-        </div>
-      </Grid2>
+      {/* ── UTILIDADES — dados reais ── */}
+      <UtilCards utilReadings={utilReadings} navigate={navigate}/>
 
       {/* ── COUNTDOWN ── */}
       <Card variant="dark">
