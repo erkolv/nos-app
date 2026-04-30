@@ -197,9 +197,6 @@ export default function HomePage() {
   const [viewRecado, setViewRecado] = useState(null)
   const [editRecado, setEditRecado] = useState(null)
   const [recadoText, setRecadoText] = useState('')
-  const [para, setPara] = useState('')
-
-  useEffect(() => { if (partner?.name) setPara(partner.name) }, [partner?.name])
 
   const sortedMessages = [...messages].sort((a,b) => new Date(b.created_at)-new Date(a.created_at))
 
@@ -248,10 +245,11 @@ export default function HomePage() {
       await mInsert({
         text: recadoText,
         from_name: profile?.name || 'Você',
-        to_name: para || partner?.name || 'Parceira'
+        to_name: 'casal'
       })
     }
-    setRecadoText(''); setRecadoOpen(false)
+    setRecadoText('')
+    setRecadoOpen(false)
   }
 
   function openEditRecado(msg) {
@@ -280,7 +278,7 @@ export default function HomePage() {
           <div style={{fontSize:14,fontWeight:900,letterSpacing:'-0.5px'}}>💬 Mural de recados</div>
           <Btn size="sm" onClick={() => {
             setEditRecado(null); setRecadoText('')
-            setPara(partner?.name || 'Gabi'); setRecadoOpen(true)
+            setRecadoOpen(true)
           }}>+ Deixar recado</Btn>
         </div>
         {mLoad ? <Spinner/> : sortedMessages.length===0 ? (
@@ -321,10 +319,10 @@ export default function HomePage() {
                       {(msg.from_name||'?')[0].toUpperCase()}
                     </div>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:800,color:C.black}}>{msg.from_name}</div>
+                      <div style={{fontSize:13,fontWeight:800,color:C.black}}>{msg.from_name}</div>
                       <div style={{fontSize:10,color:C.muted,marginTop:1}}>
-                        {new Date(msg.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}
-                        {' · '}
+                        {new Date(msg.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
+                        {' às '}
                         {new Date(msg.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
                       </div>
                     </div>
@@ -584,12 +582,12 @@ export default function HomePage() {
                 <div style={{flex:1}}>
                   <div style={{fontSize:15,fontWeight:900}}>{viewRecado.from_name}</div>
                   <div style={{fontSize:11,color:C.muted}}>
-                    {new Date(viewRecado.created_at).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
+                    {new Date(viewRecado.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}
                     {' às '}
                     {new Date(viewRecado.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
                   </div>
                 </div>
-                {isOwner && <Tag bg={C.lime} color={C.black}>Seu recado</Tag>}
+                {isOwner && <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:100,background:C.lime,color:C.black,flexShrink:0}}>Você</span>}
               </div>
 
               {/* Conteúdo */}
@@ -624,24 +622,13 @@ export default function HomePage() {
       </Modal>
 
       {/* ── MODAL: novo / editar recado ── */}
-      <Modal open={recadoOpen} onClose={()=>{setRecadoOpen(false);setEditRecado(null);setRecadoText('')}} title={editRecado?'✏️ Editar recado':'💬 Novo recado'}>
-        {!editRecado && (
-          <Field label="Para">
-            <div style={{display:'flex',gap:8}}>
-              {[partner?.name||'Gabi', profile?.name||'Erick'].map(p=>(
-                <button key={p} onClick={()=>setPara(p)} style={{flex:1,padding:'9px',borderRadius:100,border:'none',cursor:'pointer',background:para===p?C.black:'rgba(14,14,12,.07)',color:para===p?C.lime:C.muted,fontWeight:700,fontSize:12,fontFamily:'inherit'}}>
-                  {p}
-                </button>
-              ))}
-            </div>
-          </Field>
-        )}
+      <Modal open={recadoOpen} onClose={()=>{setRecadoOpen(false);setEditRecado(null);setRecadoText('')}} title={editRecado?'✏️ Editar recado':'💬 Deixar recado'}>
         <Field label="Recado">
-          <Input value={recadoText} onChange={setRecadoText} as="textarea" placeholder="Escreva seu recado..." style={{minHeight:100}}/>
+          <Input value={recadoText} onChange={setRecadoText} as="textarea" placeholder="Escreva seu recado para o casal..." style={{minHeight:120}}/>
         </Field>
         <div style={{display:'flex',gap:8,marginTop:4}}>
           <Btn onClick={sendRecado} disabled={!recadoText.trim()} style={{flex:1,justifyContent:'center',borderRadius:14,padding:12,fontSize:13}}>
-            {editRecado?'Salvar alteração':'Enviar ↑'}
+            {editRecado?'Salvar':'Publicar no mural ↑'}
           </Btn>
           <Btn variant="secondary" onClick={()=>{setRecadoOpen(false);setEditRecado(null);setRecadoText('')}} style={{padding:'12px 18px',borderRadius:14}}>
             Cancelar
