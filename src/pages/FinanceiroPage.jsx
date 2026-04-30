@@ -203,7 +203,7 @@ function GastosTab() {
 // ── SALÁRIOS ──────────────────────────────────────────────────────────────────
 function SalariosTab() {
   const { profile, partner, coupleId } = useAuth()
-  const { data: salaries, refetch } = useTable('salaries')
+  const { data: salaries, loading, refetch } = useTable('salaries')
   const [editing, setEditing] = useState(null)
   const [tempVal, setTempVal] = useState('')
   const [saving, setSaving]   = useState(false)
@@ -252,7 +252,7 @@ function SalariosTab() {
           A divisão dos gastos é calculada automaticamente com base nos salários.
         </div>
         <div style={{background:'rgba(14,14,12,.09)',borderRadius:14,padding:14}}>
-          {loading ? <Spinner/> : people.map((p,i)=>{
+          {people.length === 0 ? <Spinner/> : people.map((p,i)=>{
             const sal  = getSalary(p.name)
             const pct  = total>0?Math.round(sal/total*100):0
             const isEd = editing===p.name
