@@ -181,7 +181,7 @@ export default function HomePage() {
   const now = new Date()
 
   // Dados reais do Supabase
-  const { data: messages, loading: mLoad, insert: mInsert, update: mUpdate, remove: mRemove } = useTable('messages')
+  const { data: messages, loading: mLoad, insert: mInsert, update: mUpdate, remove: mRemove, refetch: mRefetch } = useTable('messages')
   const { data: tasks, update: updTask } = useTable('tasks')
   const { data: appointments } = useTable('appointments', 'scheduled_at')
   const { data: checklist } = useTable('checklist_items')
@@ -237,16 +237,28 @@ export default function HomePage() {
   }
 
   async function sendRecado() {
-    if (!recadoText.trim()) return
+    if (!recadoText.trim() || !coupleId) return
     if (editRecado) {
       await mUpdate(editRecado.id, { text: recadoText })
       setEditRecado(null)
-    } else {
-      await mInsert({
-        text: recadoText,
-        from_name: profile?.name || 'Você',
-        to_name: 'casal'
-      })
+      setRecadoText('')
+      setRecadoOpen(false)
+      return
+    }
+    // insert direto no supabase para garantir
+    const fromName = profile?.name || 'Você'
+    const { data: novo, error } = await supabase
+      .from('messages')
+      .insert({ text: recadoText, from_name: fromName, to_name: 'casal', couple_id: coupleId })
+      .select().single()
+    if (error) {
+      alert('Erro ao publicar: ' + error.message)
+      return
+    }
+    // adiciona localmente imediatamente
+    if (novo) {
+      // força refetch para sincronizar
+      mRefetch()
     }
     setRecadoText('')
     setRecadoOpen(false)
