@@ -219,10 +219,16 @@ function SalariosTab() {
   }
 
   async function saveSalary(name) {
-    const val = Number(tempVal)||0
+    const val = Number(tempVal)
+    if (!val || val <= 0) { setEditing(null); return }
     const rec = getRecord(name)
-    if (rec) await update(rec.id, { amount: val, updated_at: new Date().toISOString() })
-    else await insert({ name, amount: val })
+    if (rec) {
+      const { error } = await update(rec.id, { amount: val })
+      if (error) console.error('update salary error:', error)
+    } else {
+      const { error } = await insert({ name, amount: val })
+      if (error) console.error('insert salary error:', error)
+    }
     setEditing(null)
   }
 
