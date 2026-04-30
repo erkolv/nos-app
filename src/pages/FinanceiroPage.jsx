@@ -552,7 +552,7 @@ function OrcamentosTab() {
                 <div style={{textAlign:'right',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5}}>
                   <div style={{fontSize:13,fontWeight:800}}>{brl(b.actual)}</div>
                   <div style={{fontSize:10,color:C.muted}}>de {brl(b.planned)}</div>
-                  <div style={{display:'flex',gap:s5}}>
+                  <div style={{display:'flex',gap:5}}>
                     <button onClick={()=>openEdit(b)} style={{background:'none',border:'none',cursor:'pointer',color:C.muted,padding:2,lineHeight:0}}><Icons.Edit/></button>
                     <button onClick={()=>remove(b.id)} style={{background:'none',border:'none',cursor:'pointer',color:C.muted,padding:2,lineHeight:0}}><Icons.Trash/></button>
                   </div>
