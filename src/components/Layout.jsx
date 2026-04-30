@@ -1,7 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTable } from '../hooks/useTable'
 import { C, Icons, Modal, Field, Input, Btn, Select } from './ui'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────────────────
@@ -62,10 +63,96 @@ export function BottomNav() {
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
 export function TopBar() {
-  const { profile, partner } = useAuth()
+  const { profile, partner, coupleId } = useAuth()
   const [searchOpen, setSearchOpen] = useState(false)
   const [smartOpen, setSmartOpen]   = useState(false)
   const [notifsOpen, setNotifsOpen] = useState(false)
+
+  // notificações reais — geradas dinamicamente
+  const { data: vaccines }    = useTable('pet_vaccines')
+  const { data: racaoRows }   = useTable('rac_data')
+  const { data: fixedBills }  = useTable('fixed_bills')
+  const { data: checklist }   = useTable('checklist_items')
+  const { data: messages }    = useTable('messages')
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nos_dismissed_notifs') || '[]') }
+    catch { return [] }
+  })
+  const [weddingDate, setWeddingDate] = useState(null)
+
+  useEffect(() => {
+    if (!coupleId) return
+    supabase.from('couples').select('wedding_date').eq('id', coupleId).single()
+      .then(({ data }) => { if (data?.wedding_date) setWeddingDate(data.wedding_date) })
+  }, [coupleId])
+
+  // gera notificações dinamicamente
+  const notifs = (() => {
+    const list = []
+    const now = new Date()
+
+    // vacinas urgentes
+    vaccines.forEach(v => {
+      if (!v.next_at) return
+      const days = Math.floor((new Date(v.next_at + 'T12:00') - now) / 86400000)
+      if (days >= 0 && days <= 7) {
+        list.push({ id: `vac_${v.id}`, icon: '💉', bg: '#FEE8E2', title: `Vacina ${v.name} vence em ${days} dia${days !== 1 ? 's' : ''}`, sub: new Date(v.next_at + 'T12:00').toLocaleDateString('pt-BR') })
+      }
+    })
+
+    // ração acabando
+    racaoRows.forEach(r => {
+      if (!r.opened_at) return
+      const used = Math.floor((now - new Date(r.opened_at + 'T12:00')) / 86400000)
+      const left = Math.max(0, (r.days_estimate || 25) - used)
+      if (left <= 5) {
+        list.push({ id: `rac_${r.id}`, icon: '🥣', bg: '#FFF4E0', title: `Ração acaba em ~${left} dia${left !== 1 ? 's' : ''}`, sub: r.brand || 'Ração do pet' })
+      }
+    })
+
+    // contas pendentes próximas
+    const today = now.getDate()
+    fixedBills.filter(b => !b.paid).forEach(b => {
+      const daysLeft = b.due_day >= today ? b.due_day - today : 30 - today + b.due_day
+      if (daysLeft <= 3) {
+        list.push({ id: `bill_${b.id}`, icon: '💳', bg: '#FEE8E2', title: `${b.name} vence em ${daysLeft === 0 ? 'hoje' : `${daysLeft} dia${daysLeft !== 1 ? 's' : ''}`}`, sub: `R$ ${Number(b.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` })
+      }
+    })
+
+    // contagem casamento
+    if (weddingDate) {
+      const dl = Math.max(0, Math.floor((new Date(weddingDate + 'T12:00') - now) / 86400000))
+      const clDone = checklist.filter(i => i.done).length
+      const clPct  = checklist.length > 0 ? Math.round(clDone / checklist.length * 100) : 0
+      if (dl > 0 && dl <= 180) {
+        list.push({ id: `wed_${weddingDate}`, icon: '💍', bg: '#E8F0FE', title: `${dl} dias para o casamento`, sub: `Checklist: ${clPct}% · ${checklist.length - clDone} pendentes` })
+      }
+    }
+
+    // recados novos (últimas 24h)
+    const oneDayAgo = new Date(now - 86400000)
+    messages
+      .filter(m => m.from_name !== profile?.name && new Date(m.created_at) > oneDayAgo)
+      .forEach(m => {
+        list.push({ id: `msg_${m.id}`, icon: '💬', bg: C.lime, title: `Recado de ${m.from_name}`, sub: `"${m.text.slice(0, 50)}${m.text.length > 50 ? '...' : ''}"` })
+      })
+
+    return list.filter(n => !dismissed.includes(n.id))
+  })()
+
+  function dismiss(id) {
+    const next = [...dismissed, id]
+    setDismissed(next)
+    try { localStorage.setItem('nos_dismissed_notifs', JSON.stringify(next)) } catch {}
+  }
+  function clearAll() {
+    const ids = notifs.map(n => n.id)
+    const next = [...dismissed, ...ids]
+    setDismissed(next)
+    try { localStorage.setItem('nos_dismissed_notifs', JSON.stringify(next)) } catch {}
+  }
+
+  const hasNotifs = notifs.length > 0
 
   return (
     <>
@@ -94,21 +181,12 @@ export function TopBar() {
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-          {/* Notifs */}
           <div style={{ position: 'relative' }}>
             <IconBtn onClick={() => setNotifsOpen(true)}><Icons.Bell /></IconBtn>
-            <span style={{
-              position: 'absolute', top: 5, right: 5,
-              width: 8, height: 8, borderRadius: '50%', background: C.err,
-              border: `2px solid ${C.bg}`,
-            }} />
+            {hasNotifs && <span style={{ position: 'absolute', top: 5, right: 5, width: 8, height: 8, borderRadius: '50%', background: C.err, border: `2px solid ${C.bg}` }} />}
           </div>
           <IconBtn onClick={() => setSearchOpen(true)}><Icons.Search /></IconBtn>
-          {/* Smart Home btn */}
-          <IconBtn
-            onClick={() => setSmartOpen(true)}
-            style={{ background: 'linear-gradient(135deg,#1A1A18,#0E3060)' }}
-          >
+          <IconBtn onClick={() => setSmartOpen(true)} style={{ background: 'linear-gradient(135deg,#1A1A18,#0E3060)' }}>
             <span style={{ color: C.lime }}><Icons.SmartHome /></span>
           </IconBtn>
         </div>
@@ -116,7 +194,7 @@ export function TopBar() {
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <SmartModal  open={smartOpen}  onClose={() => setSmartOpen(false)} />
-      <NotifModal  open={notifsOpen} onClose={() => setNotifsOpen(false)} />
+      <NotifModal  open={notifsOpen} onClose={() => setNotifsOpen(false)} notifs={notifs} onDismiss={dismiss} onClearAll={clearAll} />
     </>
   )
 }
@@ -252,27 +330,34 @@ function SmartModal({ open, onClose }) {
 }
 
 // ─── NOTIF MODAL ─────────────────────────────────────────────────────────────
-const NOTIFS = [
-  { icon: '🐾', bg: '#FFF4E0', title: 'Vacina do Bolt vence em 5 dias', sub: 'Vacina V10 · vence 03/05/2025' },
-  { icon: '🥣', bg: '#E8F5ED', title: 'Ração do Bolt acaba em ~4 dias', sub: 'Último pacote aberto há 21 dias' },
-  { icon: '💳', bg: '#FEE8E2', title: 'Conta de luz vence amanhã',       sub: 'R$ 162,40 · vence 29/04' },
-  { icon: '💍', bg: '#E8F0FE', title: '102 dias para o casamento',        sub: 'Checklist: 40% concluído' },
-  { icon: '💬', bg: C.lime,   title: 'Recado da Gabi',                   sub: '"Lembra de ligar pro buffet!"' },
-  { icon: '🏠', bg: '#0E3060', title: 'Casa — Sala desbloqueada',         sub: 'Gabi chegou às 18:32' },
-]
-
-function NotifModal({ open, onClose }) {
+function NotifModal({ open, onClose, notifs = [], onDismiss, onClearAll }) {
   return (
     <Modal open={open} onClose={onClose} title="🔔 Notificações">
-      {NOTIFS.map((n, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderBottom: i < NOTIFS.length - 1 ? `1px solid rgba(14,14,12,0.08)` : 'none' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 12, background: n.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{n.icon}</div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>{n.title}</div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{n.sub}</div>
-          </div>
+      {notifs.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px 0' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.black, marginBottom: 4 }}>Tudo em dia!</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Nenhuma notificação pendente.</div>
         </div>
-      ))}
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <button onClick={onClearAll} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.muted, fontFamily: 'inherit', padding: '4px 0' }}>
+              Limpar todas
+            </button>
+          </div>
+          {notifs.map((n, i) => (
+            <div key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderBottom: i < notifs.length - 1 ? `1px solid rgba(14,14,12,0.08)` : 'none' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 12, background: n.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{n.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{n.title}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{n.sub}</div>
+              </div>
+              <button onClick={() => onDismiss(n.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, fontSize: 16, padding: '2px 4px', lineHeight: 1, flexShrink: 0, fontFamily: 'inherit' }}>×</button>
+            </div>
+          ))}
+        </>
+      )}
     </Modal>
   )
 }

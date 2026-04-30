@@ -274,47 +274,79 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ── RECADOS ── */}
-      <Card variant="dark" style={{marginBottom:10}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-          <span style={{fontSize:12,fontWeight:800,color:'rgba(255,255,255,0.5)',textTransform:'uppercase',letterSpacing:'0.5px'}}>
-            💬 Recados
-          </span>
+      {/* ── MURAL DE RECADOS ── */}
+      <div style={{marginBottom:10}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+          <div style={{fontSize:14,fontWeight:900,letterSpacing:'-0.5px'}}>💬 Mural de recados</div>
           <Btn size="sm" onClick={() => {
             setEditRecado(null); setRecadoText('')
             setPara(partner?.name || 'Gabi'); setRecadoOpen(true)
           }}>+ Deixar recado</Btn>
         </div>
         {mLoad ? <Spinner/> : sortedMessages.length===0 ? (
-          <p style={{fontSize:12,color:'rgba(255,255,255,.3)',textAlign:'center',padding:'12px 0',margin:0}}>
-            Nenhum recado ainda — deixe o primeiro! 💬
-          </p>
+          <div style={{background:C.white,borderRadius:22,border:`1px solid ${C.border}`,padding:'28px 20px',textAlign:'center'}}>
+            <div style={{fontSize:32,marginBottom:10}}>💬</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.black,marginBottom:4}}>Mural vazio</div>
+            <p style={{fontSize:12,color:C.muted,margin:0}}>Deixe o primeiro recado para o casal!</p>
+          </div>
         ) : (
-          sortedMessages.slice(0,5).map((msg,i) => {
-            const isOwner = msg.from_name === profile?.name
-            return (
-              <div key={msg.id} onClick={()=>setViewRecado(msg)}
-                style={{background:i===0?'rgba(255,255,255,0.09)':'rgba(255,255,255,0.05)',borderRadius:14,padding:12,marginBottom:i<Math.min(sortedMessages.length,5)-1?8:0,cursor:'pointer'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
-                  <div style={{width:24,height:24,borderRadius:'50%',background:isOwner?C.lime:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:800,color:isOwner?C.black:'#fff',flexShrink:0}}>
-                    {(msg.from_name||'?')[0].toUpperCase()}
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {sortedMessages.map((msg,i) => {
+              const isOwner = msg.from_name === profile?.name
+              const isNew   = i === 0
+              return (
+                <div
+                  key={msg.id}
+                  onClick={() => setViewRecado(msg)}
+                  style={{
+                    background: C.white,
+                    border: `1px solid ${isNew ? 'rgba(206,255,0,0.4)' : C.border}`,
+                    borderRadius: 18,
+                    padding: '14px 16px',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    boxShadow: isNew ? '0 0 0 3px rgba(206,255,0,0.15)' : 'none',
+                    transition: 'transform 0.1s',
+                  }}
+                >
+                  {/* Header */}
+                  <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:8}}>
+                    <div style={{
+                      width:30, height:30, borderRadius:'50%', flexShrink:0,
+                      background: isOwner ? C.black : '#E8F0FE',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:12, fontWeight:800,
+                      color: isOwner ? C.lime : '#2A5AC0',
+                    }}>
+                      {(msg.from_name||'?')[0].toUpperCase()}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:800,color:C.black}}>{msg.from_name}</div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:1}}>
+                        {new Date(msg.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}
+                        {' · '}
+                        {new Date(msg.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+                      </div>
+                    </div>
+                    {isNew && (
+                      <span style={{fontSize:9,fontWeight:800,padding:'2px 7px',borderRadius:100,background:C.lime,color:C.black}}>NOVO</span>
+                    )}
                   </div>
-                  <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.55)'}}>
-                    {msg.from_name}
-                  </span>
-                  {i===0 && <span style={{marginLeft:'auto',fontSize:9,fontWeight:800,padding:'1px 6px',borderRadius:100,background:C.lime,color:C.black}}>NOVO</span>}
-                  <span style={{fontSize:10,color:'rgba(255,255,255,0.25)',marginLeft:i===0?4:'auto'}}>
-                    {new Date(msg.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
-                  </span>
+                  {/* Texto — 2 linhas no mural */}
+                  <p style={{fontSize:13,fontWeight:500,color:'rgba(14,14,12,0.78)',margin:0,lineHeight:1.55,
+                    display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+                    {msg.text}
+                  </p>
+                  {/* Indicador "ver mais" */}
+                  {msg.text.length > 80 && (
+                    <div style={{fontSize:11,color:C.muted,marginTop:5,fontWeight:600}}>Ver recado completo →</div>
+                  )}
                 </div>
-                <p style={{fontSize:13,fontWeight:600,color:i===0?'#fff':'rgba(255,255,255,0.55)',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  "{msg.text}"
-                </p>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* ── CASA INTELIGENTE MINI ── */}
       <div style={{background:'linear-gradient(135deg,#1A1A18,#0E3060)',borderRadius:22,padding:16,marginBottom:10}}>
@@ -533,40 +565,57 @@ export default function HomePage() {
       </Card>
 
       {/* ── MODAL: ver recado completo ── */}
-      <Modal open={!!viewRecado} onClose={()=>setViewRecado(null)} title="💬 Recado">
+      <Modal open={!!viewRecado} onClose={()=>setViewRecado(null)}>
         {viewRecado && (() => {
           const isOwner = viewRecado.from_name === profile?.name
           return (
             <>
-              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,padding:'12px 14px',background:'rgba(14,14,12,.04)',borderRadius:14}}>
-                <div style={{width:40,height:40,borderRadius:'50%',background:isOwner?C.lime:C.black,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:800,color:isOwner?C.black:C.lime,flexShrink:0}}>
+              {/* Autor */}
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:18}}>
+                <div style={{
+                  width:44,height:44,borderRadius:'50%',flexShrink:0,
+                  background:isOwner?C.black:'#E8F0FE',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:18,fontWeight:800,
+                  color:isOwner?C.lime:'#2A5AC0',
+                }}>
                   {(viewRecado.from_name||'?')[0].toUpperCase()}
                 </div>
-                <div>
-                  <div style={{fontSize:14,fontWeight:800}}>{viewRecado.from_name}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:15,fontWeight:900}}>{viewRecado.from_name}</div>
                   <div style={{fontSize:11,color:C.muted}}>
-                    {new Date(viewRecado.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}
+                    {new Date(viewRecado.created_at).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
                     {' às '}
                     {new Date(viewRecado.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
                   </div>
                 </div>
-                {isOwner && <span style={{marginLeft:'auto',fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:100,background:'rgba(14,14,12,.06)',color:C.muted}}>Seu recado</span>}
+                {isOwner && <Tag bg={C.lime} color={C.black}>Seu recado</Tag>}
               </div>
-              <div style={{background:'rgba(14,14,12,.04)',borderRadius:16,padding:'16px 18px',marginBottom:20,fontSize:15,fontWeight:500,lineHeight:1.7,minHeight:60}}>
+
+              {/* Conteúdo */}
+              <div style={{
+                background:'rgba(14,14,12,.04)',borderRadius:18,
+                padding:'18px 20px',marginBottom:20,
+                fontSize:15,fontWeight:500,lineHeight:1.7,
+                borderLeft:`3px solid ${isOwner?C.black:'#2A5AC0'}`,
+              }}>
                 {viewRecado.text}
               </div>
+
+              {/* Ações */}
               {isOwner ? (
                 <div style={{display:'flex',gap:8}}>
-                  <Btn variant="secondary" onClick={()=>openEditRecado(viewRecado)} style={{flex:1,justifyContent:'center',borderRadius:14,padding:12}}>
+                  <Btn variant="secondary" onClick={()=>openEditRecado(viewRecado)} style={{flex:1,justifyContent:'center',borderRadius:14,padding:12,fontSize:13}}>
                     <Icons.Edit/> Editar
                   </Btn>
-                  <Btn variant="danger" onClick={()=>{mRemove(viewRecado.id);setViewRecado(null)}} style={{flex:1,justifyContent:'center',borderRadius:14,padding:12}}>
+                  <Btn variant="danger" onClick={()=>{mRemove(viewRecado.id);setViewRecado(null)}} style={{flex:1,justifyContent:'center',borderRadius:14,padding:12,fontSize:13}}>
                     <Icons.Trash/> Apagar
                   </Btn>
                 </div>
               ) : (
-                <div style={{textAlign:'center',padding:'8px 0',fontSize:12,color:C.muted}}>
-                  Só {viewRecado.from_name} pode editar ou apagar este recado.
+                <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:'rgba(14,14,12,.04)',borderRadius:12}}>
+                  <span style={{fontSize:16}}>🔒</span>
+                  <span style={{fontSize:12,color:C.muted,fontWeight:500}}>Só <strong>{viewRecado.from_name}</strong> pode editar ou apagar este recado.</span>
                 </div>
               )}
             </>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useTable } from '../hooks/useTable'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { C, brl, Card, Btn, Input, Field, Modal, Tag, SubTabs, SecHead, Empty, Spinner, Icons, Grid2, Toggle } from '../components/ui'
 import { PageShell } from '../components/Layout'
 
@@ -201,34 +202,43 @@ function GastosTab() {
 
 // ── SALÁRIOS ──────────────────────────────────────────────────────────────────
 function SalariosTab() {
-  const { profile, partner } = useAuth()
-  const { data: salaries, insert, update, loading } = useTable('salaries')
-  const [editing, setEditing] = useState(null) // name being edited
+  const { profile, partner, coupleId } = useAuth()
+  const { data: salaries, refetch } = useTable('salaries')
+  const [editing, setEditing] = useState(null)
   const [tempVal, setTempVal] = useState('')
+  const [saving, setSaving]   = useState(false)
 
   const people = [
-    { name: profile?.name||'Você', key:'me'      },
-    { name: partner?.name||'Parceira', key:'partner' },
-  ].filter(p=>p.name)
+    { name: profile?.name||'Você' },
+    { name: partner?.name||'Parceira' },
+  ].filter(p => p.name && p.name !== 'Parceira' || partner?.name)
 
   function getSalary(name) {
-    return salaries.find(s=>s.name===name)?.amount || 0
-  }
-  function getRecord(name) {
-    return salaries.find(s=>s.name===name)
+    return salaries.find(s => s.name === name)?.amount || 0
   }
 
   async function saveSalary(name) {
     const val = Number(tempVal)
-    if (!val || val <= 0) { setEditing(null); return }
-    const rec = getRecord(name)
+    if (!val || val <= 0 || !coupleId) { setEditing(null); return }
+    setSaving(true)
+    const rec = salaries.find(s => s.name === name)
+    let error
     if (rec) {
-      const { error } = await update(rec.id, { amount: val })
-      if (error) console.error('update salary error:', error)
+      // update direto no supabase sem filtro couple_id extra
+      const res = await supabase
+        .from('salaries')
+        .update({ amount: val, updated_at: new Date().toISOString() })
+        .eq('id', rec.id)
+      error = res.error
     } else {
-      const { error } = await insert({ name, amount: val })
-      if (error) console.error('insert salary error:', error)
+      const res = await supabase
+        .from('salaries')
+        .insert({ name, amount: val, couple_id: coupleId })
+      error = res.error
     }
+    if (error) alert('Erro ao salvar: ' + error.message)
+    await refetch()
+    setSaving(false)
     setEditing(null)
   }
 
@@ -542,7 +552,7 @@ function OrcamentosTab() {
                 <div style={{textAlign:'right',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5}}>
                   <div style={{fontSize:13,fontWeight:800}}>{brl(b.actual)}</div>
                   <div style={{fontSize:10,color:C.muted}}>de {brl(b.planned)}</div>
-                  <div style={{display:'flex',gap:5}}>
+                  <div style={{display:'flex',gap:s5}}>
                     <button onClick={()=>openEdit(b)} style={{background:'none',border:'none',cursor:'pointer',color:C.muted,padding:2,lineHeight:0}}><Icons.Edit/></button>
                     <button onClick={()=>remove(b.id)} style={{background:'none',border:'none',cursor:'pointer',color:C.muted,padding:2,lineHeight:0}}><Icons.Trash/></button>
                   </div>
