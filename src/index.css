@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:    #F5F5F0;
+  --white: #FFFFFF;
+  --black: #0E0E0C;
+  --lime:  #CEFF00;
+  --dark:  #1A1A18;
+  --mid:   #2E2E2C;
+  --muted: rgba(14,14,12,0.42);
+  --bdr:   rgba(14,14,12,0.08);
+  --ok:    #2ECC71;
+  --warn:  #FF9F0A;
+  --err:   #E03A2E;
+  --info:  #5AC8FA;
+  --blue:  #2A5AC0;
+}
+
+html, body, #root {
+  min-height: 100%;
+  background: var(--bg);
+  font-family: 'Urbanist', system-ui, sans-serif;
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { display: none; }
+
+input, select, textarea, button { font-family: inherit; }
+a { text-decoration: none; color: inherit; }
