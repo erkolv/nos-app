@@ -209,9 +209,9 @@ function SalariosTab() {
   const [saving, setSaving]   = useState(false)
 
   const people = [
-    { name: profile?.name||'Você' },
-    { name: partner?.name||'Parceira' },
-  ].filter(p => p.name && p.name !== 'Parceira' || partner?.name)
+    profile?.name ? { name: profile.name } : null,
+    partner?.name ? { name: partner.name } : null,
+  ].filter(Boolean)
 
   function getSalary(name) {
     return salaries.find(s => s.name === name)?.amount || 0
